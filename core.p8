@@ -1,9 +1,16 @@
 pico-8 cartridge // http://www.pico-8.com
 version 41
 __lua__
+frame_count = 0
 -- level runner
 beat_total = 0
 lb=0
+sx = 0 --debug
+sy = 0 --debug
+--delta + smoothing
+delta = 0
+delta_chunk = {}
+delta_chunk_size = 15 --moving average of last 15 frames
 
 function beat()
 	return stat(50)
@@ -36,13 +43,37 @@ function _init()
 	run_level("test", 10, {[4]={{f=bullet,d=5}}}, 0, 20)
 end
 
+function _update60()
+	frame_count += 1
+end
+
+function avg(nums)
+	local sum = 0
+	for num in all(nums) do
+		sum += num
+	end
+	return sum/#nums
+end
+
 function _draw()
  cls()
- if(flr(beat_total)%4 == 0) then cls(8) end
- local delta = ((stat(56)%speed)/speed) -- time passed since last frame (in beat time)
- if delta >= beat_total%1 then delta -= beat_total%1
- else delta = (1-beat_total%1) + delta end
- beat_total += delta
+ local delta_current = (stat(56)%speed)/speed -- time passed since last frame (in beat time)
+ if delta_current >= beat_total%1 then delta_current -= beat_total%1
+ else delta_current = (1-beat_total%1) + delta_current end
+ --now for delta smoothing
+ if #delta_chunk >= delta_chunk_size then
+  del(delta_chunk, delta_chunk[0])
+ end
+ add(delta_chunk, delta_current)
+ delta = avg(delta_chunk)
+ delta = flr(delta*100)/100 --round to nearest hundreds place for extra smoothness
+ beat_total += delta_current
+ print(delta_current, 9)
+ print(delta, 7)
+ print(beat_total, 6)
+ sx += delta*5
+ sy += delta*5
+ rectfill(sx, sy, sx+20, sy+20, 7)
 	if state == "printing" then
 	 music(musid)
 		state = "level"
